@@ -1,5 +1,5 @@
 {
-  "name": "paragonie/pqcrypto-compat",
+  "name": "paragonie/pqcrypto_compat",
   "description": "Pure PHP implementation of pqcrypto; uses the PHP extension if it exists",
   "keywords": [
     "PHP",
