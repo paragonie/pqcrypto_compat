@@ -1,0 +1,226 @@
+<?php
+declare(strict_types=1);
+namespace ParagonIE\PQCrypto\Internal\MLDSA;
+use ParagonIE\PQCrypto\Exception\MLDSAInternalException;
+
+final class Field
+{
+    public const Q = 8380417;
+    public const D = 13;
+
+    const MU = 2201172575745; // floor(2^64 / 8380417) — fits in 43 bits, safe
+
+    public static function newFromSymmetric(int $x): int
+    {
+        $mask = $x >> 63; // -1 if negative, 0 if non-negative
+        return $x + ($mask & self::Q);
+    }
+
+    public static function reduceOnce(int $r): int
+    {
+        $r1 = $r - self::Q;
+        $correction = ((self::Q - $r - 1) >> 63) & 1;
+        $mask = -$correction;
+        return $r ^ ($mask & ($r ^ $r1));
+    }
+
+    public static function add(int $a, int $b): int
+    {
+        return self::reduceOnce($a + $b);
+    }
+
+    public static function sub(int $a, int $b): int
+    {
+        return self::reduceOnce($a - $b + self::Q);
+    }
+
+    public static function neg(int $a): int
+    {
+        return self::reduceOnce(self::Q - $a);
+    }
+
+    public static function mul(int $a, int $b): int
+    {
+        $x  = $a * $b;
+        $hi = self::mul64hi($x, self::MU);
+        $r  = $x - ($hi * self::Q);
+        if (is_float($r)) {
+            throw new MLDSAInternalException('Integer overflow in mul');
+        }
+        return self::reduceOnce(self::reduceOnce($r));
+    }
+
+    /**
+     * @throws MLDSAInternalException
+     */
+    public static function div(int $numerator, int $denominator): array
+    {
+        $reciprocals = [
+            95232  => 193703209779376,
+            261888 => 70368744177664,
+            190464 => 96851604889688,
+            523776 => 35184372088832,
+        ];
+
+        if (!isset($reciprocals[$denominator])) {
+            throw new MLDSAInternalException('invalid reciprocal');
+        }
+        $quo = self::mul64hi($numerator, $reciprocals[$denominator]);
+        $r   = $numerator - $quo * $denominator;
+        for ($i = 0; $i < 2; $i++) {
+            [$quo, $r] = self::barrettCorrectDiv($quo, $r, $denominator);
+        }
+        return [$quo, $r];
+    }
+
+    /**
+     * FIPS 204 Algorithm 35
+     */
+    public static function power2round(int $a): array
+    {
+        $r0 = $a & ((1 << self::D) - 1);
+        $threshold = (1 << (self::D - 1));
+        $mask = (($threshold - $r0) >> 63);
+
+        // $adjustment = $mask & (1 << self::D);
+        $r0 -= $mask & (1 << self::D);
+        $r1 = ($a - $r0) >> self::D;
+        return [$r1, $r0];
+    }
+
+    /**
+     * FIPS 204, Algorithm 36
+     *
+     * @throws MLDSAInternalException
+     */
+    public static function decompose(int $a, int $gamma2): array
+    {
+        $rPlus = $a & 0xFFFFFFFF;
+        $twoGamma2 = $gamma2 << 1;
+
+        [$tmp, ] = self::div($rPlus, $twoGamma2);
+        $r0 = $rPlus - ($tmp * $twoGamma2);
+
+        // Constant-time alternative to:
+        // if ($r0 > $gamma2) {
+        //     $r0 -= $twoGamma2;
+        // }
+        $mask1 = ($gamma2 - $r0) >> 63;
+        $adjustment1 = ($mask1 & $twoGamma2);
+        $r0 -= $adjustment1;
+
+        $diff = $rPlus - $r0;
+        $qMinus1 = self::Q - 1;
+
+        $temp = ($diff - $qMinus1) | ($qMinus1 - $diff);
+        $mask2 = $temp >> 63;
+
+        [$quotient,] = self::div($diff, $twoGamma2);
+
+        $normalR1 = $quotient;
+        $specialR1 = 0;
+        $normalR0 = $r0;
+        $specialR0 = $r0 - 1;
+
+        $r1 = ($mask2 & $normalR1) | (~$mask2 & $specialR1);
+        $r0 = ($mask2 & $normalR0) | (~$mask2 & $specialR0);
+
+        return [$r1, $r0];
+    }
+
+    /**
+     * FIPS 204, Algorithm 37
+     *
+     * @throws MLDSAInternalException
+     */
+    public static function highBits(int $a, int $gamma2): int
+    {
+        [$r1, ] = self::decompose($a, $gamma2);
+        return $r1;
+    }
+
+    /**
+     * FIPS 204, Algorithm 38
+     *
+     * @throws MLDSAInternalException
+     */
+    public static function lowBits(int $a, int $gamma2): int
+    {
+        [, $r0] = self::decompose($a, $gamma2);
+        return $r0;
+    }
+
+    public static function infinityNorm(int $a): int
+    {
+        $left = $a;
+        $right = self::reduceOnce(self::Q - $a);
+        return (int) min($left, $right);
+    }
+
+    /**
+     * Multiply $a * $b, returning only the upper 64 bits
+     *
+     * @param int $a
+     * @param int $b
+     * @return int
+     */
+    public static function mul64hi(int $a, int $b): int
+    {
+        $M21 = 0x1FFFFF;
+        $M22 = 0x3FFFFF;
+
+        $a0 = $a & $M21;
+        $a1 = ($a >> 21) & $M21;
+        $a2 = ($a >> 42) & $M22;
+
+        $b0 = $b & $M21;
+        $b1 = ($b >> 21) & $M21;
+        $b2 = ($b >> 42) & $M22;
+
+        $c0 =  $a0 * $b0;
+        $c1 =  $a0 * $b1 + $a1 * $b0;
+        $c2 =  $a0 * $b2 + $a1 * $b1 + $a2 * $b0;
+        $c3 =  $a1 * $b2 + $a2 * $b1;
+        $c4 =  $a2 * $b2;
+
+        $c1 += $c0 >> 21;
+        $c2 += $c1 >> 21;
+        $c3 += $c2 >> 21;
+        $c4 += $c3 >> 21;
+
+        return (($c3 & $M21) >> 1) + (($c4 & $M21) << 20) + (($c4 >> 21)  << 41);
+    }
+
+    public static function barrettCorrectDiv(int $quo, int $r, int $d): array
+    {
+        $newR = $r - $d;
+        // $correction = ($r >= $d) ? 1 : 0;
+        $correction = (($d - $r - 1) >> 63) & 1;
+        $mask = -$correction;
+        $quo += $mask & 1;
+        $r   = $r ^ ($mask & ($newR ^ $r));
+        return [$quo, $r];
+    }
+
+    public static function symmetric(int $a): int
+    {
+        static $q2 = (self::Q - 1) >> 1;
+        // if ($a > $q2) {
+        //     $a -= $q;
+        // }
+        $mask = ($q2 - $a) >> 63;
+        return self::reduceonce($a - (self::Q & $mask));
+    }
+
+    /**
+     * FIPS 204, Algorithm 39
+     *
+     * @throws MLDSAInternalException
+     */
+    public static function makeHint(int $z, int $r, int $gamma2): int
+    {
+        $r1 = self::highBits($r, $gamma2);
+        $v1 = self::highBits(self::add($r, self::newFromSymmetric($z)), $gamma2);
+        return ($r1 !== $v1) ? 1 : 0;
+    }
+}
