@@ -1,10 +1,15 @@
 # pqcrypto_compat
 
+[![Build Status](https://github.com/paragonie/pqcrypto_compat/actions/workflows/ci.yml/badge.svg)](https://github.com/paragonie/pqcrypto_compat/actions)
+[![Latest Stable Version](https://poser.pugx.org/paragonie/pqcrypto_compat/v/stable)](https://packagist.org/packages/paragonie/pqcrypto_compat)
+[![License](https://poser.pugx.org/paragonie/pqcrypto_compat/license)](https://packagist.org/packages/paragonie/pqcrypto_compat)
+[![Downloads](https://img.shields.io/packagist/dt/paragonie/pqcrypto_compat.svg)](https://packagist.org/packages/paragonie/pqcrypto_compat)
+
 pqcrypto_compat defers to [the pqcrypto extension](https://github.com/paragonie/ext-pqcrypto) if it's available, and
 provides a polyfill for environments where it is not available, ensuring the PHP ecosystem can effectively migrate to
 use post-quantum secure cryptographic algorithms.
 
-> ![WARNING]
+> [!WARNING]
 > 
 > This code has never been independently audited. Use at your own risk.
 
