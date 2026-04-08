@@ -419,17 +419,28 @@ final class Operations
     {
         $ctx = Keccak::shake256();
         $ctx->absorb($seed);
-        $s = Util::stringToByteArray($ctx->squeeze(8));
+        $buf = $ctx->squeeze(256);
+        $bufLen = 256;
+        $bufIdx = 0;
+
+        $s = [];
+        for ($k = 0; $k < 8; $k++) {
+            $s[$k] = Util::ord($buf[$bufIdx++]);
+        }
 
         $c = Ring::zero();
-        for ($i = 256 - $params->tau(); $i < 256; ++$i) {
+        $tau = $params->tau();
+        for ($i = 256 - $tau; $i < 256; ++$i) {
             do {
-                $j = $ctx->squeeze(1);
-                $j0 = Util::ord($j);
+                if ($bufIdx >= $bufLen) {
+                    $buf .= $ctx->squeeze(136);
+                    $bufLen += 136;
+                }
+                $j0 = Util::ord($buf[$bufIdx++]);
             } while ($j0 > $i);
             $c[$i] = $c[$j0];
 
-            $idx = $i + $params->tau() - 256;
+            $idx = $i + $tau - 256;
             $h = ($s[$idx >> 3] >> ($idx & 7) & 1);
             $c[$j0] = 1 - ($h << 1);
         }
@@ -443,16 +454,22 @@ final class Operations
     {
         $ctx = Keccak::shake128();
         $ctx->absorb($seed);
-        /** @var ?int $tmp */
+        $buf = $ctx->squeeze(840);
+        $bufLen = 840;
+        $bufIdx = 0;
         $a_hat = Ntt::zero();
         for ($j = 0; $j < 256; ++$j) {
             do {
-                $s = $ctx->squeeze(3);
+                if ($bufIdx + 3 > $bufLen) {
+                    $buf .= $ctx->squeeze(168);
+                    $bufLen += 168;
+                }
                 $tmp = self::fromThreeBytes(
-                    Util::ord($s[0]),
-                    Util::ord($s[1]),
-                    Util::ord($s[2])
+                    Util::ord($buf[$bufIdx]),
+                    Util::ord($buf[$bufIdx + 1]),
+                    Util::ord($buf[$bufIdx + 2])
                 );
+                $bufIdx += 3;
             } while (is_null($tmp));
             $a_hat[$j] = $tmp;
         }
@@ -466,12 +483,18 @@ final class Operations
     {
         $ctx = Keccak::shake256();
         $ctx->absorb($seed);
+        $buf = $ctx->squeeze(272);
+        $bufLen = 272;
+        $bufIdx = 0;
         $a = Ring::zero();
         $j = 0;
         $eta = $params->eta();
         while ($j < 256) {
-            $z = $ctx->squeeze(1);
-            $ord = Util::ord($z[0]);
+            if ($bufIdx >= $bufLen) {
+                $buf .= $ctx->squeeze(136);
+                $bufLen += 136;
+            }
+            $ord = Util::ord($buf[$bufIdx++]);
             $z0 = self::fromHalfByte($eta, $ord & 0xf);
             if (!is_null($z0)) {
                 $a->{'c' . $j} = $z0;

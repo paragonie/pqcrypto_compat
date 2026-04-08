@@ -10,6 +10,10 @@ use ParagonIE\PQCrypto\Util;
 #[Internal]
 class InternalVerificationKey
 {
+    /** @var Ntt[][]|null */
+    private ?array $cachedAhat = null;
+    private ?string $cachedTr = null;
+
     /**
      * @param Params $params
      * @param string $rho
@@ -61,9 +65,14 @@ class InternalVerificationKey
 
     public function verifyInternal(InternalSignature $signature, string $Mprime): bool
     {
-        $Ahat = Operations::expandA($this->params, $this->rho);
-        $tr = Operations::H($this->bytes(), 64);
-        $mu = Operations::H($tr . $Mprime, 64);
+        if ($this->cachedAhat === null) {
+            $this->cachedAhat = Operations::expandA($this->params, $this->rho);
+        }
+        if ($this->cachedTr === null) {
+            $this->cachedTr = Operations::H($this->bytes(), 64);
+        }
+        $Ahat = $this->cachedAhat;
+        $mu = Operations::H($this->cachedTr . $Mprime, 64);
 
         $c = Operations::sampleInBall($this->params, $signature->c_tilde);
 

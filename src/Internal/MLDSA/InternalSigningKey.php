@@ -21,6 +21,7 @@ class InternalSigningKey
      * @param Ntt[] $s2hat
      * @param array $t0hat
      * @param InternalVerificationKey $vk
+     * @param Ntt[][] $Ahat Cached expansion of rho
      */
     public function __construct(
         public Params $params,
@@ -35,6 +36,7 @@ class InternalSigningKey
         public array $s2hat,
         public array $t0hat,
         public InternalVerificationKey $vk,
+        public array $Ahat,
     ) {}
 
     /**
@@ -78,7 +80,7 @@ class InternalSigningKey
         $tr = Operations::H($pk, 64);
         $vk = new InternalVerificationKey($params, $rho, $t1);
         $t0hat = Operations::nttVec(Operations::ringVectorFromSymmetric($t0));
-        return new InternalSigningKey($params, $seed, $rho, $K, $tr, $s1hat, $s2hat, $t0hat, $vk);
+        return new InternalSigningKey($params, $seed, $rho, $K, $tr, $s1hat, $s2hat, $t0hat, $vk, $A_hat);
     }
 
     /**
@@ -88,8 +90,9 @@ class InternalSigningKey
      */
     public function signInternal(string $mPrime, string $rnd): InternalSignature
     {
-        // We already cached s1, s2, and t0 in the NTT domain in the object's constructor
-        $Ahat = Operations::expandA($this->params, $this->rho);
+        // Ahat, s1, s2, and t0 are cached in the NTT domain
+        $Ahat = $this->Ahat;
+        $l = $this->params->l();
         $mu = Operations::H($this->tr . $mPrime, 64);
         $rhoPrimePrime = Operations::H($this->K . $rnd . $mu, 64);
         $kappa = 0;
@@ -125,6 +128,7 @@ class InternalSigningKey
             $z_inf = Operations::infinityNormVec($z);
             $r0_inf = Operations::infinityNormVec(Operations::ringVectorFromSymmetric($r0));
             if ($z_inf >= $gamma1_beta || $r0_inf >= $gamma2_beta) {
+                $kappa += $l;
                 continue;
             }
 
@@ -137,6 +141,7 @@ class InternalSigningKey
                 $z = null;
                 $h = null;
             }
+            $kappa += $l;
         } while (is_null($z) || is_null($h));
 
         // We have a valid signature:

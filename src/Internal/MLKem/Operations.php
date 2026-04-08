@@ -192,33 +192,33 @@ final class Operations extends Util
     public static function sampleNTT(string $rho, int $ii, int $jj): NttElement
     {
         $xof = Keccak::shake128();
-        $xof->absorb($rho);
-        $xof->absorb(self::chr($ii) . self::chr($jj));
+        $xof->absorb($rho . self::chr($ii) . self::chr($jj));
+        $buf = $xof->squeeze(504);
+        $bufLen = 504;
+        $bufIdx = 0;
 
         $a = NttElement::zero();
         $j = 0;
         while ($j < 256) {
-            $buf = $xof->squeeze(24);
-            for (
-                $off = 0;
-                $off < 24 && $j < 256;
-                $off += 3
-            ) {
-                $b0 = self::ord($buf[$off]);
-                $b1 = self::ord($buf[$off + 1]);
-                $b2 = self::ord($buf[$off + 2]);
-                $d1 = ($b0 | ($b1 << 8)) & 0xFFF;
-                $d2 = (($b1 | ($b2 << 8)) >> 4) & 0xFFF;
+            if ($bufIdx + 3 > $bufLen) {
+                $buf .= $xof->squeeze(168);
+                $bufLen += 168;
+            }
+            $b0 = self::ord($buf[$bufIdx]);
+            $b1 = self::ord($buf[$bufIdx + 1]);
+            $b2 = self::ord($buf[$bufIdx + 2]);
+            $bufIdx += 3;
+            $d1 = ($b0 | ($b1 << 8)) & 0xFFF;
+            $d2 = (($b1 | ($b2 << 8)) >> 4) & 0xFFF;
 
-                if ($d1 < FieldElement::Q) {
-                    $a[$j++] = $d1;
-                    if ($j >= 256) {
-                        break;
-                    }
+            if ($d1 < FieldElement::Q) {
+                $a[$j++] = $d1;
+                if ($j >= 256) {
+                    break;
                 }
-                if ($d2 < FieldElement::Q) {
-                    $a[$j++] = $d2;
-                }
+            }
+            if ($d2 < FieldElement::Q) {
+                $a[$j++] = $d2;
             }
         }
         return $a;
@@ -235,8 +235,7 @@ final class Operations extends Util
         int $eta
     ): RingElement {
         $prf = Keccak::shake256();
-        $prf->absorb($sigma);
-        $prf->absorb(self::chr($counter));
+        $prf->absorb($sigma . self::chr($counter));
         $B = $prf->squeeze(64 * $eta);
 
         $f = RingElement::zero();
@@ -759,8 +758,7 @@ final class Operations extends Util
 
         // Implicit rejection
         $shake = Keccak::shake256();
-        $shake->absorb($z);
-        $shake->absorb($ciphertext);
+        $shake->absorb($z . $ciphertext);
         $Kout = $shake->squeeze(32);
 
         // Re-encrypt.

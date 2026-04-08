@@ -4,8 +4,6 @@ namespace ParagonIE\PQCrypto\Internal;
 
 use ParagonIE\PQCrypto\Attributes\Internal;
 use ParagonIE\PQCrypto\Util;
-use function array_map;
-use function hex2bin;
 use function min;
 use function pack;
 use function str_pad;
@@ -18,16 +16,46 @@ final class Keccak extends Util
 {
     private const ROUNDS = 24;
 
+    private const PILN = [
+        10, 7, 11, 17, 18, 3, 5, 16,
+        8, 21, 24, 4, 15, 23, 19, 13,
+        12, 2, 20, 14, 22, 9, 6, 1,
+    ];
+
     private const ROTC = [
         1, 3, 6, 10, 15, 21, 28, 36,
         45, 55, 2, 14, 27, 41, 56, 8,
         25, 43, 62, 18, 39, 61, 20, 44,
     ];
 
-    private const PILN = [
-        10, 7, 11, 17, 18, 3, 5, 16,
-        8, 21, 24, 4, 15, 23, 19, 13,
-        12, 2, 20, 14, 22, 9, 6, 1,
+    /**
+     * Precomputed (1 << ROTC[i]) - 1 for masking
+     * arithmetic right-shift sign extension in rotl64.
+     * @var int[]
+     */
+    private const ROTC_MASKS = [
+        0x1, 0x7, 0x3F, 0x3FF,
+        0x7FFF, 0x1FFFFF, 0xFFFFFFF, 0xFFFFFFFFF,
+        0x1FFFFFFFFFFF, 0x7FFFFFFFFFFFFF, 0x3, 0x3FFF,
+        0x7FFFFFF, 0x1FFFFFFFFFF, 0xFFFFFFFFFFFFFF, 0xFF,
+        0x1FFFFFF, 0x7FFFFFFFFFF, 0x3FFFFFFFFFFFFFFF, 0x3FFFF,
+        0x7FFFFFFFFF, 0x1FFFFFFFFFFFFFFF, 0xFFFFF, 0xFFFFFFFFFFF,
+    ];
+
+    /** @var int[] Precomputed Keccak-f[1600] round constants */
+    private const RC = [
+        1, 32898,
+        -9223372036854742902, -9223372034707259392,
+        32907, 2147483649,
+        -9223372034707259263, -9223372036854743031,
+        138, 136,
+        2147516425, 2147483658,
+        2147516555, -9223372036854775669,
+        -9223372036854742903, -9223372036854743037,
+        -9223372036854743038, -9223372036854775680,
+        32778, -9223372034707292150,
+        -9223372034707259263, -9223372036854742912,
+        2147483649, -9223372034707259384,
     ];
 
     /** @var int[] */
@@ -38,37 +66,6 @@ final class Keccak extends Util
     private int $suffix;
     private bool $squeezing = false;
     private string $squeezeBuffer = '';
-    private static ?array $cachedRC = null;
-
-    /**
-     * @return int[]
-     */
-    private static function roundConstants(): array
-    {
-        if (self::$cachedRC !== null) {
-            return self::$cachedRC;
-        }
-        self::$cachedRC = array_map(
-            static fn(string $hex): int => (
-            unpack('J', hex2bin($hex))[1]
-            ),
-            [
-                '0000000000000001', '0000000000008082',
-                '800000000000808A', '8000000080008000',
-                '000000000000808B', '0000000080000001',
-                '8000000080008081', '8000000000008009',
-                '000000000000008A', '0000000000000088',
-                '0000000080008009', '000000008000000A',
-                '000000008000808B', '800000000000008B',
-                '8000000000008089', '8000000000008003',
-                '8000000000008002', '8000000000000080',
-                '000000000000800A', '800000008000000A',
-                '8000000080008081', '8000000000008080',
-                '0000000080000001', '8000000080008008',
-            ]
-        );
-        return self::$cachedRC;
-    }
 
     private function __construct(int $rate, int $suffix = 0x1F)
     {
@@ -180,20 +177,20 @@ final class Keccak extends Util
     private function permute(): void
     {
         $st = &$this->state;
-        $rc = self::roundConstants();
 
         for ($round = 0; $round < self::ROUNDS; $round++) {
+            // θ — inline rotl64($c, 1) to avoid 5 calls/round
             $c0 = $st[0] ^ $st[5] ^ $st[10] ^ $st[15] ^ $st[20];
             $c1 = $st[1] ^ $st[6] ^ $st[11] ^ $st[16] ^ $st[21];
             $c2 = $st[2] ^ $st[7] ^ $st[12] ^ $st[17] ^ $st[22];
             $c3 = $st[3] ^ $st[8] ^ $st[13] ^ $st[18] ^ $st[23];
             $c4 = $st[4] ^ $st[9] ^ $st[14] ^ $st[19] ^ $st[24];
 
-            $d0 = $c4 ^ self::rotl64($c1, 1);
-            $d1 = $c0 ^ self::rotl64($c2, 1);
-            $d2 = $c1 ^ self::rotl64($c3, 1);
-            $d3 = $c2 ^ self::rotl64($c4, 1);
-            $d4 = $c3 ^ self::rotl64($c0, 1);
+            $d0 = $c4 ^ (($c1 << 1) | (($c1 >> 63) & 1));
+            $d1 = $c0 ^ (($c2 << 1) | (($c2 >> 63) & 1));
+            $d2 = $c1 ^ (($c3 << 1) | (($c3 >> 63) & 1));
+            $d3 = $c2 ^ (($c4 << 1) | (($c4 >> 63) & 1));
+            $d4 = $c3 ^ (($c0 << 1) | (($c0 >> 63) & 1));
 
             $st[0] ^= $d0;
             $st[1] ^= $d1;
@@ -221,14 +218,15 @@ final class Keccak extends Util
             $st[23] ^= $d3;
             $st[24] ^= $d4;
 
+            // ρ and π — inline rotl64 with precomputed masks
             $current = $st[1];
             for ($i = 0; $i < 24; $i++) {
                 $j = self::PILN[$i];
                 $temp = $st[$j];
-                $st[$j] = self::rotl64(
-                    $current,
-                    self::ROTC[$i]
-                );
+                $n = self::ROTC[$i];
+                $st[$j] = ($current << $n)
+                    | (($current >> (64 - $n))
+                        & self::ROTC_MASKS[$i]);
                 $current = $temp;
             }
 
@@ -246,16 +244,8 @@ final class Keccak extends Util
                 $st[$y + 4] = $t4 ^ ((~$t0) & $t1);
             }
 
-            $st[0] ^= $rc[$round];
+            // ι
+            $st[0] ^= self::RC[$round];
         }
-    }
-
-    private static function rotl64(int $x, int $n): int
-    {
-        return ($x << $n) | (
-                ($x >> (64 - $n))
-                    &
-                ((1 << $n) - 1)
-            );
     }
 }

@@ -3,10 +3,13 @@ declare(strict_types=1);
 namespace ParagonIE\PQCrypto\Tests;
 
 use ParagonIE\PQCrypto\Compat;
+use ParagonIE\PQCrypto\MLDSA44\Signature as Sig44;
 use ParagonIE\PQCrypto\MLDSA44\SigningKey as SK44;
 use ParagonIE\PQCrypto\MLDSA44\VerificationKey as VK44;
+use ParagonIE\PQCrypto\MLDSA65\Signature as Sig65;
 use ParagonIE\PQCrypto\MLDSA65\SigningKey as SK65;
 use ParagonIE\PQCrypto\MLDSA65\VerificationKey as VK65;
+use ParagonIE\PQCrypto\MLDSA87\Signature as Sig87;
 use ParagonIE\PQCrypto\MLDSA87\SigningKey as SK87;
 use ParagonIE\PQCrypto\MLDSA87\VerificationKey as VK87;
 use ParagonIE\PQCrypto\MLKem512\DecapsulationKey as MLKem512DK;
@@ -153,6 +156,7 @@ class CompatTest extends TestCase
 
         $msg = 'Compat ML-DSA-65 test';
         $sig = Compat::mldsa65_sign($keys['signingKey'], $msg);
+        $this->assertInstanceOf(Sig65::class, $sig);
         $this->assertTrue(
             Compat::mldsa65_verify(
                 $keys['verificationKey'],
@@ -169,6 +173,7 @@ class CompatTest extends TestCase
 
         $msg = 'Compat ML-DSA-87 test';
         $sig = Compat::mldsa87_sign($keys['signingKey'], $msg);
+        $this->assertInstanceOf(Sig87::class, $sig);
         $this->assertTrue(
             Compat::mldsa87_verify(
                 $keys['verificationKey'],
