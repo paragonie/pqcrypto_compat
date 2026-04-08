@@ -109,6 +109,7 @@ class InternalSigningKey
             $y = Operations::ringVectorFromSymmetric(
                 Operations::expandMask($this->params, $rhoPrimePrime, $kappa)
             );
+            $kappa += $l;
             $w = Operations::invNttVec(
                 Operations::matrixVectorNtt($this->params, $Ahat, Operations::nttVec($y))
             );
@@ -128,7 +129,8 @@ class InternalSigningKey
             $z_inf = Operations::infinityNormVec($z);
             $r0_inf = Operations::infinityNormVec(Operations::ringVectorFromSymmetric($r0));
             if ($z_inf >= $gamma1_beta || $r0_inf >= $gamma2_beta) {
-                $kappa += $l;
+                $z = null;
+                $h = null;
                 continue;
             }
 
@@ -141,7 +143,6 @@ class InternalSigningKey
                 $z = null;
                 $h = null;
             }
-            $kappa += $l;
         } while (is_null($z) || is_null($h));
 
         // We have a valid signature:

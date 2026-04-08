@@ -123,11 +123,12 @@ class MLDSAWycheproofTest extends TestCase
         string $comment,
         array $flags,
         string $ctx,
+        string $mu,
     ): void {
         $this->runSignSeedTest(
             Params::MLDSA44,
             $tcId, $privateSeed, $publicKey, $msg,
-            $expectedSig, $result, $comment, $flags, $ctx
+            $expectedSig, $result, $comment, $flags, $ctx, $mu
         );
     }
 
@@ -142,11 +143,12 @@ class MLDSAWycheproofTest extends TestCase
         string $comment,
         array $flags,
         string $ctx,
+        string $mu,
     ): void {
         $this->runSignSeedTest(
             Params::MLDSA65,
             $tcId, $privateSeed, $publicKey, $msg,
-            $expectedSig, $result, $comment, $flags, $ctx
+            $expectedSig, $result, $comment, $flags, $ctx, $mu
         );
     }
 
@@ -161,11 +163,12 @@ class MLDSAWycheproofTest extends TestCase
         string $comment,
         array $flags,
         string $ctx,
+        string $mu,
     ): void {
         $this->runSignSeedTest(
             Params::MLDSA87,
             $tcId, $privateSeed, $publicKey, $msg,
-            $expectedSig, $result, $comment, $flags, $ctx
+            $expectedSig, $result, $comment, $flags, $ctx, $mu
         );
     }
 
@@ -234,9 +237,13 @@ class MLDSAWycheproofTest extends TestCase
         string $comment,
         array $flags,
         string $ctx,
+        string $mu,
     ): void {
         if ($result !== 'valid') {
             $this->markTestSkipped("Non-valid sign test #{$tcId}");
+        }
+        if (!empty($mu) && empty($msg)) {
+            $this->markTestSkipped("We don't support external mu");
         }
 
         $seedBin = hex2bin($privateSeed);
@@ -295,6 +302,7 @@ class MLDSAWycheproofTest extends TestCase
                 $row['comment'] ?? '',
                 $row['flags'] ?? [],
                 $row['ctx'] ?? '',
+                $row['mu'] ?? '',
             ];
         }, $rows);
     }
