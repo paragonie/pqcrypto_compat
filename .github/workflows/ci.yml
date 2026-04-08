@@ -17,8 +17,6 @@ jobs:
     name: >-
       PHP ${{ matrix.php }} - ${{ matrix.os }}
       ${{ matrix.ext-pqcrypto && '(ext-pqcrypto)' || '' }}
-    # TODO - remove this when https://github.com/extphprs/ext-php-rs/pull/717 is fixed/released
-    continue-on-error: ${{ matrix.os == 'windows-latest' && matrix.ext-pqcrypto }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
@@ -29,6 +27,7 @@ jobs:
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9  # nightly
         with:
           toolchain: nightly
+          components: rustfmt
 
       - uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f  # v2.37.0
         with:
