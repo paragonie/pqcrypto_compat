@@ -11,13 +11,6 @@
         </testsuite>
     </testsuites>
 
-    <groups>
-        <exclude>
-            <group>Wycheproof</group>
-            <group>Slow</group>
-        </exclude>
-    </groups>
-
     <source>
         <include>
             <directory>src</directory>
