@@ -39,6 +39,7 @@
     "trailofbits/wycheproof": "^0|^1"
   },
   "suggest": {
-    "ext-pqcrypto": "Better performance, higher assurance"
+    "ext-pqcrypto": "Better performance, higher assurance",
+    "ext-sodium": "Faster X-Wing KEM (only if ext-pqcrypto is not installed)"
   }
 }

@@ -9,6 +9,7 @@ use ParagonIE\PQCrypto\Internal\MLKem\Operations;
 use ParagonIE\PQCrypto\XWing\DecapsulationKey;
 use ParagonIE\PQCrypto\XWing\EncapsulationKey;
 use Random\RandomException;
+use SensitiveParameter;
 use SodiumException;
 
 abstract class XWing
@@ -34,6 +35,25 @@ abstract class XWing
     public static function generateKeypair(): array
     {
         $seed = random_bytes(32);
+        return self::generateKeypairFromSeed($seed);
+    }
+
+    /**
+     * @return array{0: DecapsulationKey, 1: EncapsulationKey}
+     *
+     * @throws MLKemInternalException
+     * @throws PQCryptoCompatException
+     * @throws SodiumException
+     */
+    public static function generateKeypairFromSeed(
+        #[SensitiveParameter]
+        string $seed
+    ): array {
+        if (\strlen($seed) !== self::SEED_SIZE) {
+            throw new PQCryptoCompatException(
+                'Seed must be ' . self::SEED_SIZE . ' bytes'
+            );
+        }
         [, , $pkM, $pkX] = self::expandDecapsulationKey($seed);
         return [
             new DecapsulationKey($seed),

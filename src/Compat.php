@@ -47,7 +47,12 @@ use PQCrypto\{
     MLKem1024\EncapsulationKey as ExtMLKem1024EK,
 };
 use Random\RandomException;
+use SensitiveParameter;
 use SodiumException;
+use function extension_loaded;
+use function is_string;
+use function strlen;
+use function substr;
 
 abstract class Compat
 {
@@ -67,6 +72,35 @@ abstract class Compat
             ];
         }
         return MLKem512::generateKeypair();
+    }
+
+    /**
+     * @return array{0: MLKem512DK, 1: MLKem512EK}
+     *
+     * @throws MLKemInternalException
+     * @throws PQCryptoCompatException
+     */
+    public static function mlkem512_seed_keypair(
+        #[SensitiveParameter]
+        string $seed
+    ): array {
+        if (strlen($seed) !== 64) {
+            throw new PQCryptoCompatException('ML-KEM-512 seed must be 64 bytes');
+        }
+        if (self::useExtension()) {
+            [$dk, $ek] = ExtMLKem512::keypairFromSeed($seed);
+            return [
+                new MLKem512DK($dk->bytes()),
+                new MLKem512EK($ek->bytes()),
+            ];
+        }
+        $d = substr($seed, 0, 32);
+        $z = substr($seed, 32, 32);
+        $pieces = MLKem512::keyGenInternal($d, $z);
+        return [
+            new MLKem512DK($pieces['decapsulationKey']),
+            new MLKem512EK($pieces['encapsulationKey']),
+        ];
     }
 
     /**
@@ -93,6 +127,7 @@ abstract class Compat
      * @throws MLKemInternalException
      */
     public static function mlkem512_decaps(
+        #[SensitiveParameter]
         string|DecapsKeyInterface $dk,
         string $ciphertext
     ): string {
@@ -126,6 +161,35 @@ abstract class Compat
     }
 
     /**
+     * @return array{0: MLKem768DK, 1: MLKem768EK}
+     *
+     * @throws MLKemInternalException
+     * @throws PQCryptoCompatException
+     */
+    public static function mlkem768_seed_keypair(
+        #[SensitiveParameter]
+        string $seed
+    ): array {
+        if (strlen($seed) !== 64) {
+            throw new PQCryptoCompatException('ML-KEM-768 seed must be 64 bytes');
+        }
+        if (self::useExtension()) {
+            [$dk, $ek] = ExtMLKem768::keypairFromSeed($seed);
+            return [
+                new MLKem768DK($dk->bytes()),
+                new MLKem768EK($ek->bytes()),
+            ];
+        }
+        $d = substr($seed, 0, 32);
+        $z = substr($seed, 32, 32);
+        $pieces = MLKem768::keyGenInternal($d, $z);
+        return [
+            new MLKem768DK($pieces['decapsulationKey']),
+            new MLKem768EK($pieces['encapsulationKey']),
+        ];
+    }
+
+    /**
      * @return array{sharedKey: string, ciphertext: string}
      * @throws MLKemInternalException
      * @throws RandomException
@@ -149,6 +213,7 @@ abstract class Compat
      * @throws MLKemInternalException
      */
     public static function mlkem768_decaps(
+        #[SensitiveParameter]
         string|DecapsKeyInterface $dk,
         string $ciphertext
     ): string {
@@ -182,6 +247,37 @@ abstract class Compat
     }
 
     /**
+     * @return array{0: MLKem1024DK, 1: MLKem1024EK}
+     *
+     * @throws MLKemInternalException
+     * @throws PQCryptoCompatException
+     */
+    public static function mlkem1024_seed_keypair(
+        #[SensitiveParameter]
+        string $seed
+    ): array {
+        if (strlen($seed) !== 64) {
+            throw new PQCryptoCompatException(
+                'ML-KEM-1024 seed must be 64 bytes'
+            );
+        }
+        if (self::useExtension()) {
+            [$dk, $ek] = ExtMLKem1024::keypairFromSeed($seed);
+            return [
+                new MLKem1024DK($dk->bytes()),
+                new MLKem1024EK($ek->bytes()),
+            ];
+        }
+        $d = substr($seed, 0, 32);
+        $z = substr($seed, 32, 32);
+        $pieces = MLKem1024::keyGenInternal($d, $z);
+        return [
+            new MLKem1024DK($pieces['decapsulationKey']),
+            new MLKem1024EK($pieces['encapsulationKey']),
+        ];
+    }
+
+    /**
      * @return array{sharedKey: string, ciphertext: string}
      * @throws MLKemInternalException
      * @throws RandomException
@@ -204,6 +300,7 @@ abstract class Compat
      * @throws MLKemInternalException
      */
     public static function mlkem1024_decaps(
+        #[SensitiveParameter]
         string|DecapsKeyInterface $dk,
         string $ciphertext
     ): string {
@@ -230,12 +327,37 @@ abstract class Compat
             [$sk, $vk] = ExtMLDSA44::generateKeypair();
             return [
                 'signingKey' => MLDSA44SK::fromBytes($sk->bytes()),
-                'verificationKey' => MLDSA44VK::fromBytes(
-                    $vk->bytes()
-                ),
+                'verificationKey' => MLDSA44VK::fromBytes($vk->bytes()),
             ];
         }
         $sk = MLDSA44SK::fromBytes(random_bytes(32));
+        return [
+            'signingKey' => $sk,
+            'verificationKey' => $sk->getVerificationKey(),
+        ];
+    }
+
+    /**
+     * @return array{signingKey: MLDSA44SK, verificationKey: MLDSA44VK}
+     *
+     * @throws MLDSAInternalException
+     * @throws PQCryptoCompatException
+     */
+    public static function mldsa44_seed_keypair(
+        #[SensitiveParameter]
+        string $seed
+    ): array {
+        if (strlen($seed) !== 32) {
+            throw new PQCryptoCompatException('ML-DSA-44 seed must be 32 bytes');
+        }
+        if (self::useExtension()) {
+            [$sk, $vk] = ExtMLDSA44::keypairFromSeed($seed);
+            return [
+                'signingKey' => MLDSA44SK::fromBytes($sk->bytes()),
+                'verificationKey' => MLDSA44VK::fromBytes($vk->bytes()),
+            ];
+        }
+        $sk = MLDSA44SK::fromBytes($seed);
         return [
             'signingKey' => $sk,
             'verificationKey' => $sk->getVerificationKey(),
@@ -247,6 +369,7 @@ abstract class Compat
      * @throws RandomException
      */
     public static function mldsa44_sign(
+        #[SensitiveParameter]
         string|SigningKeyInterface $sk,
         string $message,
         string $ctx = ''
@@ -291,12 +414,37 @@ abstract class Compat
             [$sk, $vk] = ExtMLDSA65::generateKeypair();
             return [
                 'signingKey' => MLDSA65SK::fromBytes($sk->bytes()),
-                'verificationKey' => MLDSA65VK::fromBytes(
-                    $vk->bytes()
-                ),
+                'verificationKey' => MLDSA65VK::fromBytes($vk->bytes()),
             ];
         }
         $sk = MLDSA65SK::fromBytes(random_bytes(32));
+        return [
+            'signingKey' => $sk,
+            'verificationKey' => $sk->getVerificationKey(),
+        ];
+    }
+
+    /**
+     * @return array{signingKey: MLDSA65SK, verificationKey: MLDSA65VK}
+     *
+     * @throws MLDSAInternalException
+     * @throws PQCryptoCompatException
+     */
+    public static function mldsa65_seed_keypair(
+        #[SensitiveParameter]
+        string $seed
+    ): array {
+        if (strlen($seed) !== 32) {
+            throw new PQCryptoCompatException('ML-DSA-65 seed must be 32 bytes');
+        }
+        if (self::useExtension()) {
+            [$sk, $vk] = ExtMLDSA65::keypairFromSeed($seed);
+            return [
+                'signingKey' => MLDSA65SK::fromBytes($sk->bytes()),
+                'verificationKey' => MLDSA65VK::fromBytes($vk->bytes()),
+            ];
+        }
+        $sk = MLDSA65SK::fromBytes($seed);
         return [
             'signingKey' => $sk,
             'verificationKey' => $sk->getVerificationKey(),
@@ -308,6 +456,7 @@ abstract class Compat
      * @throws RandomException
      */
     public static function mldsa65_sign(
+        #[SensitiveParameter]
         string|SigningKeyInterface $sk,
         string $message,
         string $ctx = ''
@@ -365,10 +514,38 @@ abstract class Compat
     }
 
     /**
+     * @return array{signingKey: MLDSA87SK, verificationKey: MLDSA87VK}
+     *
+     * @throws MLDSAInternalException
+     * @throws PQCryptoCompatException
+     */
+    public static function mldsa87_seed_keypair(
+        #[SensitiveParameter]
+        string $seed
+    ): array {
+        if (strlen($seed) !== 32) {
+            throw new PQCryptoCompatException('ML-DSA-87 seed must be 32 bytes');
+        }
+        if (self::useExtension()) {
+            [$sk, $vk] = ExtMLDSA87::keypairFromSeed($seed);
+            return [
+                'signingKey' => MLDSA87SK::fromBytes($sk->bytes()),
+                'verificationKey' => MLDSA87VK::fromBytes($vk->bytes()),
+            ];
+        }
+        $sk = MLDSA87SK::fromBytes($seed);
+        return [
+            'signingKey' => $sk,
+            'verificationKey' => $sk->getVerificationKey(),
+        ];
+    }
+
+    /**
      * @throws MLDSAInternalException
      * @throws RandomException
      */
     public static function mldsa87_sign(
+        #[SensitiveParameter]
         string|SigningKeyInterface $sk,
         string $message,
         string $ctx = ''
@@ -418,6 +595,30 @@ abstract class Compat
             ];
         }
         return XWing::generateKeypair();
+    }
+
+    /**
+     * @return array{0: XWingDK, 1: XWingEK}
+     *
+     * @throws MLKemInternalException
+     * @throws PQCryptoCompatException
+     * @throws SodiumException
+     */
+    public static function xwing_seed_keypair(
+        #[SensitiveParameter]
+        string $seed
+    ): array {
+        if (strlen($seed) !== 32) {
+            throw new PQCryptoCompatException('X-Wing seed must be 32 bytes');
+        }
+        if (self::useExtension()) {
+            [$dk, $ek] = ExtXWing::keypairFromSeed($seed);
+            return [
+                new XWingDK($dk->bytes()),
+                new XWingEK($ek->bytes()),
+            ];
+        }
+        return XWing::generateKeypairFromSeed($seed);
     }
 
     /**
