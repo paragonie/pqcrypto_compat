@@ -56,6 +56,38 @@ use function substr;
 
 abstract class Compat
 {
+    public const MLKEM512_DECAPSKEY_BYTES = 64;
+    public const MLKEM512_ENCAPSKEY_BYTES = 800;
+    public const MLKEM512_CIPHERTEXT_BYTES = 768;
+    public const MLKEM512_SHAREDSECRET_BYTES = 32;
+
+    public const MLKEM768_DECAPSKEY_BYTES = 64;
+    public const MLKEM768_ENCAPSKEY_BYTES = 1184;
+    public const MLKEM768_CIPHERTEXT_BYTES = 1088;
+    public const MLKEM768_SHAREDSECRET_BYTES = 64;
+
+    public const MLKEM1024_DECAPSKEY_BYTES = 64;
+    public const MLKEM1024_ENCAPSKEY_BYTES = 800;
+    public const MLKEM1024_CIPHERTEXT_BYTES = 768;
+    public const MLKEM1024_SHAREDSECRET_BYTES = 32;
+
+    public const XWING_DECAPSKEY_BYTES = 32;
+    public const XWING_ENCAPSKEY_BYTES = 1216;
+    public const XWING_CIPHERTEXT_BYTES = 1120;
+    public const XWING_SHAREDSECRET_BYTES = 32;
+
+    public const MLDSA44_SIGNINGKEY_BYTES = 32;
+    public const MLDSA44_VERIFYINGKEY_BYTES = 1312;
+    public const MLDSA44_SIGNATURE_BYTES = 2420;
+
+    public const MLDSA65_SIGNINGKEY_BYTES = 32;
+    public const MLDSA65_VERIFYINGKEY_BYTES = 1952;
+    public const MLDSA65_SIGNATURE_BYTES = 3309;
+
+    public const MLDSA87_SIGNINGKEY_BYTES = 32;
+    public const MLDSA87_VERIFYINGKEY_BYTES = 2592;
+    public const MLDSA87_SIGNATURE_BYTES = 4627;
+
     /**
      * @return array{0: MLKem512DK, 1: MLKem512EK}
      *
@@ -84,7 +116,7 @@ abstract class Compat
         #[SensitiveParameter]
         string $seed
     ): array {
-        if (strlen($seed) !== 64) {
+        if (strlen($seed) !== self::MLKEM512_DECAPSKEY_BYTES) {
             throw new PQCryptoCompatException('ML-KEM-512 seed must be 64 bytes');
         }
         if (self::useExtension()) {
@@ -170,7 +202,7 @@ abstract class Compat
         #[SensitiveParameter]
         string $seed
     ): array {
-        if (strlen($seed) !== 64) {
+        if (strlen($seed) !== self::MLKEM768_DECAPSKEY_BYTES) {
             throw new PQCryptoCompatException('ML-KEM-768 seed must be 64 bytes');
         }
         if (self::useExtension()) {
@@ -256,10 +288,8 @@ abstract class Compat
         #[SensitiveParameter]
         string $seed
     ): array {
-        if (strlen($seed) !== 64) {
-            throw new PQCryptoCompatException(
-                'ML-KEM-1024 seed must be 64 bytes'
-            );
+        if (strlen($seed) !== self::MLKEM1024_DECAPSKEY_BYTES) {
+            throw new PQCryptoCompatException('ML-KEM-1024 seed must be 64 bytes');
         }
         if (self::useExtension()) {
             [$dk, $ek] = ExtMLKem1024::keypairFromSeed($seed);
@@ -347,7 +377,7 @@ abstract class Compat
         #[SensitiveParameter]
         string $seed
     ): array {
-        if (strlen($seed) !== 32) {
+        if (strlen($seed) !== self::MLDSA44_SIGNINGKEY_BYTES) {
             throw new PQCryptoCompatException('ML-DSA-44 seed must be 32 bytes');
         }
         if (self::useExtension()) {
@@ -434,7 +464,7 @@ abstract class Compat
         #[SensitiveParameter]
         string $seed
     ): array {
-        if (strlen($seed) !== 32) {
+        if (strlen($seed) !== self::MLDSA65_SIGNINGKEY_BYTES) {
             throw new PQCryptoCompatException('ML-DSA-65 seed must be 32 bytes');
         }
         if (self::useExtension()) {
@@ -523,7 +553,7 @@ abstract class Compat
         #[SensitiveParameter]
         string $seed
     ): array {
-        if (strlen($seed) !== 32) {
+        if (strlen($seed) !== self::MLDSA87_SIGNINGKEY_BYTES) {
             throw new PQCryptoCompatException('ML-DSA-87 seed must be 32 bytes');
         }
         if (self::useExtension()) {
@@ -608,7 +638,7 @@ abstract class Compat
         #[SensitiveParameter]
         string $seed
     ): array {
-        if (strlen($seed) !== 32) {
+        if (strlen($seed) !== self::XWING_DECAPSKEY_BYTES) {
             throw new PQCryptoCompatException('X-Wing seed must be 32 bytes');
         }
         if (self::useExtension()) {
