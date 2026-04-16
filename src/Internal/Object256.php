@@ -79,10 +79,6 @@ class Object256
      */
     public function toArray(): array
     {
-        $out = [];
-        for ($i = 0; $i < 256; $i++) {
-            $out[$i] = $this->{'c' . $i};
-        }
-        return $out;
+        return array_values(get_object_vars($this));
     }
 }
