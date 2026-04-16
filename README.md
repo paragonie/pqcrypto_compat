@@ -25,6 +25,10 @@ Optional, but recommended: Install [the pqcrypto extension](https://github.com/p
 
 The recommended way to use this polyfill library is the Compat class.
 
+> [!TIP]
+> If you aren't already using opcache and JIT, we **highly** recommend enabling those PHP features
+> when using pqcrypto_compat without ext-pqcrypto. It makes a huge difference.
+
 ### X-Wing Example
 
 X-Wing is a hybrid KEM combining X25519 and ML-KEM-768. The X25519 implementation is provided by 
