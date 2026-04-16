@@ -28,11 +28,7 @@ final class RingElement extends Object256 implements ArrayAccess
         if (count($coefficients) !== 256) {
             throw new MLKemInternalException("RingElement::fromArray() expects 256 elements");
         }
-        $e = new self();
-        for ($i = 0; $i < 256; $i++) {
-            $e->{'c' . $i} = $coefficients[$i];
-        }
-        return $e;
+        return new self(...$coefficients);
     }
 
     public function offsetExists(mixed $offset): bool
