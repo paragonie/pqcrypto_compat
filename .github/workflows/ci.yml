@@ -32,6 +32,11 @@ jobs:
       - uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f  # v2.37.0
         with:
           php-version: ${{ matrix.php }}
+          coverage: none # xdebug conflicts with JIT
+          ini-values: >-
+            opcache.enable_cli=1,
+            opcache.jit=tracing,
+            opcache.jit_buffer_size=64M
 
       - name: Build and install ext-pqcrypto
         if: matrix.ext-pqcrypto
