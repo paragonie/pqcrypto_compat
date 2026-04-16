@@ -873,30 +873,22 @@ final class Operations extends Util
      */
     public static function ntt(RingElement $f): NttElement
     {
-        $c = NttElement::zero();
-        for ($i = 0; $i < 256; $i++) {
-            $c[$i] = $f[$i];
-        }
+        $c = $f->toArray();
         $k = 1;
         for ($len = 128; $len >= 2; $len >>= 1) {
-            for (
-                $start = 0;
-                $start < 256;
-                $start += 2 * $len
-            ) {
+            for ($start = 0; $start < 256; $start += 2 * $len) {
                 $zeta = self::ZETAS[$k++];
                 for ($j = 0; $j < $len; $j++) {
                     $p = $start + $j;
                     $q = $start + $len + $j;
                     $a = $c[$p];
-                    $b = $c[$q];
-                    $t = FieldElement::mul($zeta, $b);
+                    $t = FieldElement::mul($zeta, $c[$q]);
                     $c[$p] = FieldElement::add($a, $t);
                     $c[$q] = FieldElement::sub($a, $t);
                 }
             }
         }
-        return $c;
+        return new NttElement(...$c);
     }
 
     /**
@@ -904,35 +896,24 @@ final class Operations extends Util
      */
     public static function inverseNTT(NttElement $f): RingElement
     {
-        $c = RingElement::zero();
-        for ($i = 0; $i < 256; $i++) {
-            $c[$i] = $f[$i];
-        }
+        $c = $f->toArray();
         $k = 127;
         for ($len = 2; $len <= 128; $len <<= 1) {
-            for (
-                $start = 0;
-                $start < 256;
-                $start += 2 * $len
-            ) {
+            for ($start = 0; $start < 256; $start += 2 * $len) {
                 $zeta = self::ZETAS[$k--];
                 for ($j = 0; $j < $len; $j++) {
                     $p = $start + $j;
                     $q = $start + $len + $j;
                     $t = $c[$p];
-                    $c[$p] = FieldElement::add(
-                        $t, $c[$q]
-                    );
-                    $c[$q] = FieldElement::mulSub(
-                        $zeta, $c[$q], $t
-                    );
+                    $c[$p] = FieldElement::add($t, $c[$q]);
+                    $c[$q] = FieldElement::mulSub($zeta, $c[$q], $t);
                 }
             }
         }
         for ($i = 0; $i < 256; $i++) {
             $c[$i] = FieldElement::mul($c[$i], 3303);
         }
-        return $c;
+        return new RingElement(...$c);
     }
 
     /**

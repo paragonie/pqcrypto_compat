@@ -158,12 +158,13 @@ final class Operations
      */
     public static function simpleBitPack(Ring $w, int $k): array
     {
+        $coeffs = $w->toArray();
         $n = 256;
         $numBytes = ($n * $k + 7) >> 3;
         $z = array_fill(0, $numBytes, 0);
         $bitPos = 0;
         for ($i = 0; $i < $n; ++$i) {
-            $v = $w->{'c' . $i};
+            $v = $coeffs[$i];
             for ($j = 0; $j < $k; ++$j) {
                 $z[$bitPos >> 3] |= ($v & 1) << ($bitPos & 7);
                 $v >>= 1;
@@ -178,6 +179,7 @@ final class Operations
      */
     public static function bitPack(Ring $w, int $k): array
     {
+        $coeffs = $w->toArray();
         $n = 256;
         $bitsPerCoeff = $k + 1;
         $numBytes = ($n * $bitsPerCoeff + 7) >> 3;
@@ -185,7 +187,7 @@ final class Operations
         $base = 1 << $k;
         $bitPos = 0;
         for ($i = 0; $i < $n; ++$i) {
-            $v = $base - $w->{'c' . $i};
+            $v = $base - $coeffs[$i];
             for ($j = 0; $j < $bitsPerCoeff; ++$j) {
                 $z[$bitPos >> 3] |= ($v & 1) << ($bitPos & 7);
                 $v >>= 1;
@@ -197,7 +199,7 @@ final class Operations
 
     protected static function bitUnpackInternal(array $z, int $k): Ring
     {
-        $w = Ring::zero();
+        $coeffs = [];
         $bitPos = 0;
         for ($i = 0; $i < 256; ++$i) {
             $v = 0;
@@ -205,9 +207,9 @@ final class Operations
                 $v |= (($z[$bitPos >> 3] >> ($bitPos & 7)) & 1) << $j;
                 $bitPos++;
             }
-            $w->{'c' . $i} = $v;
+            $coeffs[$i] = $v;
         }
-        return $w;
+        return new Ring(...$coeffs);
     }
 
     /**
@@ -223,12 +225,13 @@ final class Operations
      */
     public static function bitUnpack(array $v, int $k): Ring
     {
-        $z = Ring::zero();
-        $w = self::bitUnpackInternal($v, $k + 1);
+        $wa = self::bitUnpackInternal($v, $k + 1)->toArray();
+        $za = [];
+        $base = 1 << $k;
         for ($i = 0; $i < 256; ++$i) {
-            $z->{'c' . $i} = (1 << $k) - $w[$i];
+            $za[$i] = $base - $wa[$i];
         }
-        return $z;
+        return new Ring(...$za);
     }
 
     /**
@@ -247,8 +250,9 @@ final class Operations
         $y = array_fill(0, $k + $omega, 0);
         $index = 0;
         for ($i = 0; $i < $k; ++$i) {
+            $ha = $h[$i]->toArray();
             for ($j = 0; $j < 256; ++$j) {
-                if ($h[$i]->{'c' . $j} === 1) {
+                if ($ha[$j] === 1) {
                     $y[$index] = $j & 0xff;
                     ++$index;
                 }
@@ -599,18 +603,20 @@ final class Operations
         $k = $params->k();
         $v = [];
         for ($i = 0; $i < $k; ++$i) {
-            $v[$i] = Ring::zero();
+            $ha = $h[$i]->toArray();
+            $ra = $r[$i]->toArray();
+            $va = [];
             for ($j = 0; $j < 256; ++$j) {
-                [$r1, $r0] = Field::decompose($r[$i]->{'c' . $j}, $g2);
-                $v[$i]->{'c' . $j} = $r1;
-                if ($h[$i]->{'c' . $j} === 1) {
-                    if ($r0 > 0) {
-                        $v[$i]->{'c' . $j} = ($r1 + 1) % $m;
-                    } else {
-                        $v[$i]->{'c' . $j} = ($r1 - 1 + $m) % $m;
-                    }
+                [$r1, $r0] = Field::decompose($ra[$j], $g2);
+                if ($ha[$j] === 1) {
+                    $va[$j] = $r0 > 0
+                        ? ($r1 + 1) % $m
+                        : ($r1 - 1 + $m) % $m;
+                } else {
+                    $va[$j] = $r1;
                 }
             }
+            $v[$i] = new Ring(...$va);
         }
         return $v;
     }
@@ -620,21 +626,21 @@ final class Operations
      */
     public static function ntt(Ring $w): Ntt
     {
-        $wh = new Ntt(...$w->toArray());
+        $c = $w->toArray();
         $m = 0;
         for ($len = 128; $len >= 1; $len >>= 1) {
             for ($start = 0; $start < 256; $start += $len << 1) {
                 ++$m;
                 $z = self::ZETAS[$m];
                 for ($j = $start; $j < $start + $len; $j++) {
-                    // t <- (w * w_hat[j + len]) mod q
-                    $t = Field::mul($wh[$j + $len], $z);
-                    $wh[$j + $len] = Field::sub($wh[$j], $t);
-                    $wh[$j] = Field::add($wh[$j], $t);
+                    $jl = $j + $len;
+                    $t = Field::mul($c[$jl], $z);
+                    $c[$jl] = Field::sub($c[$j], $t);
+                    $c[$j] = Field::add($c[$j], $t);
                 }
             }
         }
-        return $wh;
+        return new Ntt(...$c);
     }
 
     /**
@@ -642,23 +648,24 @@ final class Operations
      */
     public static function inverseNtt(Ntt $wh): Ring
     {
-        $w = new Ring(...$wh->toArray());
+        $c = $wh->toArray();
         $m = 256;
         for ($len = 1; $len < 256; $len <<= 1) {
             for ($start = 0; $start < 256; $start += $len << 1) {
                 --$m;
-                $z = Field::neg(self::ZETAS[$m]);
+                $z = Field::reduceOnce(Field::Q - self::ZETAS[$m]);
                 for ($j = $start; $j < $start + $len; $j++) {
-                    $t = $w[$j];
-                    $w[$j] = Field::add($t, $w[$j + $len]);
-                    $w[$j + $len] = Field::mul($z, Field::sub($t, $w[$j + $len]));
+                    $jl = $j + $len;
+                    $t = $c[$j];
+                    $c[$j] = Field::add($t, $c[$jl]);
+                    $c[$jl] = Field::mul($z, Field::sub($t, $c[$jl]));
                 }
             }
         }
         for ($j = 0; $j < 256; ++$j) {
-            $w[$j] = Field::mul($w[$j], 8347681); // mod inverse of 256, mod q
+            $c[$j] = Field::mul($c[$j], 8347681);
         }
-        return $w;
+        return new Ring(...$c);
     }
 
     /**
@@ -743,9 +750,16 @@ final class Operations
      */
     public static function scalarVectorNtt(Ntt $cHat, array $vHat): array
     {
+        $ca = $cHat->toArray();
         $w = [];
-        for ($i = 0; $i < count($vHat); ++$i) {
-            $w[$i] = $cHat->mul($vHat[$i]);
+        $cnt = count($vHat);
+        for ($i = 0; $i < $cnt; ++$i) {
+            $va = $vHat[$i]->toArray();
+            $r = [];
+            for ($n = 0; $n < 256; ++$n) {
+                $r[$n] = Field::mul($ca[$n], $va[$n]);
+            }
+            $w[$i] = new Ntt(...$r);
         }
         return $w;
     }
@@ -763,13 +777,23 @@ final class Operations
         $wh = [];
         $k = $params->k();
         $l = $params->l();
+        $vArrays = [];
+        for ($j = 0; $j < $l; ++$j) {
+            $vArrays[$j] = $vHat[$j]->toArray();
+        }
         for ($i = 0; $i < $k; ++$i) {
-            $wh[$i] = Ntt::zero();
+            $acc = array_fill(0, 256, 0);
             for ($j = 0; $j < $l; ++$j) {
-                $wh[$i] = $wh[$i]->add(
-                    $mHat[$i][$j]->mul($vHat[$j])
-                );
+                $ma = $mHat[$i][$j]->toArray();
+                $va = $vArrays[$j];
+                for ($n = 0; $n < 256; ++$n) {
+                    $acc[$n] = Field::add(
+                        $acc[$n],
+                        Field::mul($ma[$n], $va[$n])
+                    );
+                }
             }
+            $wh[$i] = new Ntt(...$acc);
         }
         return $wh;
     }
@@ -843,6 +867,8 @@ final class Operations
      * @param Ring[] $z
      * @param Ring[] $r
      * @return Ring[]|null
+     *
+     * @throws MLDSAInternalException
      */
     public static function makeHintVec(Params $params, array $z, array $r): ?array
     {
@@ -851,11 +877,14 @@ final class Operations
         $k = $params->k();
         $gamma2 = $params->gamma2();
         for ($i = 0; $i < $k; ++$i) {
-            $hints[$i] = Ring::zero();
+            $za = $z[$i]->toArray();
+            $ra = $r[$i]->toArray();
+            $ha = [];
             for ($j = 0; $j < 256; ++$j) {
-                $hints[$i]->{'c' . $j} = Operations::makeHint($z[$i][$j], $r[$i][$j], $gamma2);
-                $weight += $hints[$i]->{'c' . $j};
+                $ha[$j] = Field::makeHint($za[$j], $ra[$j], $gamma2);
+                $weight += $ha[$j];
             }
+            $hints[$i] = new Ring(...$ha);
         }
         if ($weight > $params->omega()) {
             return null;

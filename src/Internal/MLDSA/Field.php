@@ -8,7 +8,8 @@ final class Field
     public const Q = 8380417;
     public const D = 13;
 
-    const MU = 2201172575745; // floor(2^64 / 8380417) — fits in 43 bits, safe
+    const MU_LO  = 1836545;  // 2201172575745 & 0x1FFFFF
+    const MU_MID = 1049600;  // (2201172575745 >> 21) & 0x1FFFFF
 
     public static function newFromSymmetric(int $x): int
     {
@@ -41,13 +42,29 @@ final class Field
 
     public static function mul(int $a, int $b): int
     {
-        $x  = $a * $b;
-        $hi = self::mul64hi($x, self::MU);
-        $r  = $x - ($hi * self::Q);
-        if (is_float($r)) {
-            throw new MLDSAInternalException('Integer overflow in mul');
-        }
-        return self::reduceOnce(self::reduceOnce($r));
+        $x = $a * $b;
+
+        // Inlined Barrett reduction: hi = mul64hi($x, MU)
+        // MU_HI is 0, so all $x_i * MU_HI and MU_HI * $x_i terms vanish.
+        $x0 = $x & 0x1FFFFF;
+        $x1 = ($x >> 21) & 0x1FFFFF;
+        $x2 = ($x >> 42) & 0x3FFFFF;
+
+        $c0 = $x0 * self::MU_LO;
+        $c1 = $x0 * self::MU_MID + $x1 * self::MU_LO;
+        $c2 = $x1 * self::MU_MID + $x2 * self::MU_LO;
+        $c3 = $x2 * self::MU_MID;
+        // c4 = 0 (all terms involve MU_HI)
+
+        $c1 += $c0 >> 21;
+        $c2 += $c1 >> 21;
+        $c3 += $c2 >> 21;
+
+        $hi = (($c3 & 0x1FFFFF) >> 1) + (($c3 >> 21) << 20);
+
+        // Barrett approximation: hi <= floor(x/Q), off by at most 1. Therefore, r is in [0, 2Q).
+        // One reduceOnce is sufficient to remain in [0, Q).
+        return self::reduceOnce($x - $hi * self::Q);
     }
 
     /**

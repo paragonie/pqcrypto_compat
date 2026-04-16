@@ -218,17 +218,78 @@ final class Keccak extends Util
             $st[23] ^= $d3;
             $st[24] ^= $d4;
 
-            // ρ and π — inline rotl64 with precomputed masks
+            // ρ and π — fully unrolled, no array lookups
             $current = $st[1];
-            for ($i = 0; $i < 24; $i++) {
-                $j = self::PILN[$i];
-                $temp = $st[$j];
-                $n = self::ROTC[$i];
-                $st[$j] = ($current << $n)
-                    | (($current >> (64 - $n))
-                        & self::ROTC_MASKS[$i]);
-                $current = $temp;
-            }
+            $temp = $st[10];
+            $st[10] = ($current << 1) | (($current >> 63) & 0x1);
+            $current = $temp;
+            $temp = $st[7];
+            $st[7] = ($current << 3) | (($current >> 61) & 0x7);
+            $current = $temp;
+            $temp = $st[11];
+            $st[11] = ($current << 6) | (($current >> 58) & 0x3F);
+            $current = $temp;
+            $temp = $st[17];
+            $st[17] = ($current << 10) | (($current >> 54) & 0x3FF);
+            $current = $temp;
+            $temp = $st[18];
+            $st[18] = ($current << 15) | (($current >> 49) & 0x7FFF);
+            $current = $temp;
+            $temp = $st[3];
+            $st[3] = ($current << 21) | (($current >> 43) & 0x1FFFFF);
+            $current = $temp;
+            $temp = $st[5];
+            $st[5] = ($current << 28) | (($current >> 36) & 0xFFFFFFF);
+            $current = $temp;
+            $temp = $st[16];
+            $st[16] = ($current << 36) | (($current >> 28) & 0xFFFFFFFFF);
+            $current = $temp;
+            $temp = $st[8];
+            $st[8] = ($current << 45) | (($current >> 19) & 0x1FFFFFFFFFFF);
+            $current = $temp;
+            $temp = $st[21];
+            $st[21] = ($current << 55) | (($current >> 9) & 0x7FFFFFFFFFFFFF);
+            $current = $temp;
+            $temp = $st[24];
+            $st[24] = ($current << 2) | (($current >> 62) & 0x3);
+            $current = $temp;
+            $temp = $st[4];
+            $st[4] = ($current << 14) | (($current >> 50) & 0x3FFF);
+            $current = $temp;
+            $temp = $st[15];
+            $st[15] = ($current << 27) | (($current >> 37) & 0x7FFFFFF);
+            $current = $temp;
+            $temp = $st[23];
+            $st[23] = ($current << 41) | (($current >> 23) & 0x1FFFFFFFFFF);
+            $current = $temp;
+            $temp = $st[19];
+            $st[19] = ($current << 56) | (($current >> 8) & 0xFFFFFFFFFFFFFF);
+            $current = $temp;
+            $temp = $st[13];
+            $st[13] = ($current << 8) | (($current >> 56) & 0xFF);
+            $current = $temp;
+            $temp = $st[12];
+            $st[12] = ($current << 25) | (($current >> 39) & 0x1FFFFFF);
+            $current = $temp;
+            $temp = $st[2];
+            $st[2] = ($current << 43) | (($current >> 21) & 0x7FFFFFFFFFF);
+            $current = $temp;
+            $temp = $st[20];
+            $st[20] = ($current << 62) | (($current >> 2) & 0x3FFFFFFFFFFFFFFF);
+            $current = $temp;
+            $temp = $st[14];
+            $st[14] = ($current << 18) | (($current >> 46) & 0x3FFFF);
+            $current = $temp;
+            $temp = $st[22];
+            $st[22] = ($current << 39) | (($current >> 25) & 0x7FFFFFFFFF);
+            $current = $temp;
+            $temp = $st[9];
+            $st[9] = ($current << 61) | (($current >> 3) & 0x1FFFFFFFFFFFFFFF);
+            $current = $temp;
+            $temp = $st[6];
+            $st[6] = ($current << 20) | (($current >> 44) & 0xFFFFF);
+            $current = $temp;
+            $st[1] = ($current << 44) | (($current >> 20) & 0xFFFFFFFFFFF);
 
             // χ
             for ($y = 0; $y < 25; $y += 5) {
