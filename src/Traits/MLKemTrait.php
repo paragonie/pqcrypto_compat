@@ -23,8 +23,12 @@ trait MLKemTrait
      *
      * @throws MLKemInternalException
      */
-    public static function keyGenInternal(string $d, string $z): array
-    {
+    public static function keyGenInternal(
+        #[SensitiveParameter]
+        string $d,
+        #[SensitiveParameter]
+        string $z
+    ): array {
         if (strlen($d) !== 32 || strlen($z) !== 32) {
             throw new MlKemInternalException('Seeds must be 32 bytes each');
         }
@@ -96,6 +100,7 @@ trait MLKemTrait
      * @throws MLKemInternalException
      */
     public static function decapsulate(
+        #[SensitiveParameter]
         DecapsKeyInterface $decapsulationKey,
         string $ciphertext
     ): string {

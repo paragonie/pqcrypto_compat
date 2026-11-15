@@ -5,10 +5,13 @@ namespace ParagonIE\PQCrypto\MLKem1024;
 use ParagonIE\PQCrypto\DecapsKeyInterface;
 use ParagonIE\PQCrypto\Exception\MLKemInternalException;
 use ParagonIE\PQCrypto\MLKem1024;
+use ParagonIE\PQCrypto\Traits\SensitiveDebugInfoTrait;
 use SensitiveParameter;
 
 class DecapsulationKey implements DecapsKeyInterface
 {
+    use SensitiveDebugInfoTrait;
+
     public function __construct(
         #[SensitiveParameter]
         private string $key
