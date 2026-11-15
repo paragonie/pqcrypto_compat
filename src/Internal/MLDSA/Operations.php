@@ -909,9 +909,13 @@ final class Operations
 
     /**
      * Get M' from M and ctx
+     * @throws MLDSAInternalException
      */
     public static function prepareMessage(string $message, string $ctx): string
     {
+        if (strlen($ctx) > 255) {
+            throw new MLDSAInternalException('context must not exceed 255 bytes');
+        }
         return "\x00" . pack('C', strlen($ctx)) . $ctx . $message;
     }
 }

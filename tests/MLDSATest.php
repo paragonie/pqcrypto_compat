@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace ParagonIE\PQCrypto\Tests;
 
+use ParagonIE\PQCrypto\Exception\MLDSAInternalException;
 use ParagonIE\PQCrypto\MLDSA44;
 use ParagonIE\PQCrypto\MLDSA44\Signature as Sig44;
 use ParagonIE\PQCrypto\MLDSA44\SigningKey as SK44;
@@ -14,6 +15,7 @@ use ParagonIE\PQCrypto\Internal\MLDSA\Params;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Random\RandomException;
 
 #[Group("ML-DSA")]
 #[CoversClass(MLDSA44::class)]
@@ -113,6 +115,40 @@ class MLDSATest extends TestCase
         $this->assertTrue($vk->verify($sig, $msg, $ctx));
         $this->assertFalse($vk->verify($sig, $msg));
         $this->assertFalse($vk->verify($sig, $msg, 'wrong-ctx'));
+    }
+
+    /**
+     * @throws RandomException
+     * @throws MLDSAInternalException
+     */
+    public function testLongContextRejected(): void
+    {
+        /** @var SK44|SK65|SK87 $skClass */
+        foreach ([SK44::class, SK65::class, SK87::class] as $skClass) {
+            $sk = $skClass::fromBytes(str_repeat("\x01", 32));
+            $vk = $sk->getVerificationKey();
+            $message = 'Context collision regression';
+            $maxContext = str_repeat('C', 255);
+            $this->assertTrue($vk->verify($sk->sign($message, $maxContext), $message, $maxContext));
+            foreach ([256, 512] as $length) {
+                $ctx = str_repeat('C', $length);
+                // Before the fix, this signature also verified as ($message, $ctx).
+                $sig = $sk->sign($ctx . $message);
+                $this->assertTrue($vk->verify($sig, $ctx . $message));
+                try {
+                    $vk->verify($sig, $message, $ctx);
+                    $this->fail('Verification must reject an overlong context');
+                } catch (MLDSAInternalException) {
+                    $this->addToAssertionCount(1);
+                }
+                try {
+                    $sk->sign($message, $ctx);
+                    $this->fail('Signing must reject an overlong context');
+                } catch (MLDSAInternalException) {
+                    $this->addToAssertionCount(1);
+                }
+            }
+        }
     }
 
     #[Group("Slow")]
