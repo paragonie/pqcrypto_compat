@@ -124,11 +124,12 @@ class MLDSAWycheproofTest extends TestCase
         array $flags,
         string $ctx,
         string $mu,
+        string $rnd,
     ): void {
         $this->runSignSeedTest(
             Params::MLDSA44,
             $tcId, $privateSeed, $publicKey, $msg,
-            $expectedSig, $result, $comment, $flags, $ctx, $mu
+            $expectedSig, $result, $comment, $flags, $ctx, $mu, $rnd
         );
     }
 
@@ -144,11 +145,12 @@ class MLDSAWycheproofTest extends TestCase
         array $flags,
         string $ctx,
         string $mu,
+        string $rnd,
     ): void {
         $this->runSignSeedTest(
             Params::MLDSA65,
             $tcId, $privateSeed, $publicKey, $msg,
-            $expectedSig, $result, $comment, $flags, $ctx, $mu
+            $expectedSig, $result, $comment, $flags, $ctx, $mu, $rnd
         );
     }
 
@@ -164,11 +166,12 @@ class MLDSAWycheproofTest extends TestCase
         array $flags,
         string $ctx,
         string $mu,
+        string $rnd,
     ): void {
         $this->runSignSeedTest(
             Params::MLDSA87,
             $tcId, $privateSeed, $publicKey, $msg,
-            $expectedSig, $result, $comment, $flags, $ctx, $mu
+            $expectedSig, $result, $comment, $flags, $ctx, $mu, $rnd
         );
     }
 
@@ -238,6 +241,7 @@ class MLDSAWycheproofTest extends TestCase
         array $flags,
         string $ctx,
         string $mu,
+        string $rnd,
     ): void {
         if ($result !== 'valid') {
             $this->markTestSkipped("Non-valid sign test #{$tcId}");
@@ -260,7 +264,8 @@ class MLDSAWycheproofTest extends TestCase
             bin2hex($sk->vk->bytes()),
             "Public key mismatch for sign test #{$tcId}"
         );
-        $rnd = str_repeat("\x00", 32);
+        $rnd = hex2bin($rnd);
+        self::assertNotFalse($rnd);
         $mPrime = Operations::prepareMessage($msgBin, $ctxBin);
         $sig = $sk->signInternal($mPrime, $rnd);
 
@@ -303,6 +308,7 @@ class MLDSAWycheproofTest extends TestCase
                 $row['flags'] ?? [],
                 $row['ctx'] ?? '',
                 $row['mu'] ?? '',
+                $row['rnd'] ?? str_repeat('00', 32),
             ];
         }, $rows);
     }

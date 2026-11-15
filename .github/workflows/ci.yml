@@ -38,6 +38,14 @@ jobs:
             opcache.jit=tracing,
             opcache.jit_buffer_size=64M
 
+      - name: Set up matching Clang and libclang (Linux)
+        if: matrix.ext-pqcrypto && runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y clang-18 libclang-18-dev
+          echo "CLANG_PATH=/usr/bin/clang-18" >> "$GITHUB_ENV"
+          echo "LIBCLANG_PATH=/usr/lib/llvm-18/lib" >> "$GITHUB_ENV"
+
       - name: Build and install ext-pqcrypto
         if: matrix.ext-pqcrypto
         shell: bash
