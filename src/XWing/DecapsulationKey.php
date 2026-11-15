@@ -3,11 +3,14 @@ declare(strict_types=1);
 namespace ParagonIE\PQCrypto\XWing;
 
 use ParagonIE\PQCrypto\DecapsKeyInterface;
+use ParagonIE\PQCrypto\Traits\SensitiveDebugInfoTrait;
 use ParagonIE\PQCrypto\XWing;
 use SensitiveParameter;
 
 class DecapsulationKey implements DecapsKeyInterface
 {
+    use SensitiveDebugInfoTrait;
+
     public function __construct(
         #[SensitiveParameter]
         private string $key

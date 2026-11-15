@@ -4,16 +4,17 @@ namespace ParagonIE\PQCrypto\Internal\MLDSA;
 
 use ParagonIE\PQCrypto\Attributes\Internal;
 use ParagonIE\PQCrypto\Exception\MLDSAInternalException;
-use ParagonIE\PQCrypto\Internal\Keccak;
-use ParagonIE\PQCrypto\SignatureInterface;
-use ParagonIE\PQCrypto\Util;
+use ParagonIE\PQCrypto\Traits\SensitiveDebugInfoTrait;
 use SensitiveParameter;
 
 #[Internal]
 class InternalSigningKey
 {
+    use SensitiveDebugInfoTrait;
+
     /**
      * @param Params $params
+     * @param string $seed
      * @param string $rho
      * @param string $K
      * @param string $tr
@@ -50,8 +51,14 @@ class InternalSigningKey
     /**
      * FIPS 204, Algorithm 6
      */
-    public static function keyGenInternal(Params $params, string $seed): InternalSigningKey
-    {
+    public static function keyGenInternal(
+        Params $params,
+        #[SensitiveParameter]
+        string $seed
+    ): InternalSigningKey {
+        if (strlen($seed) !== 32) {
+            throw new MLDSAInternalException('ML-DSA seed must be 32 bytes');
+        }
         $s = Operations::H(
             $seed . pack('C', $params->k()) . pack('C', $params->l()),
             128

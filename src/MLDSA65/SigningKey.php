@@ -8,11 +8,14 @@ use ParagonIE\PQCrypto\Internal\MLDSA\Operations;
 use ParagonIE\PQCrypto\Internal\MLDSA\Params;
 use ParagonIE\PQCrypto\SignatureInterface;
 use ParagonIE\PQCrypto\SigningKeyInterface;
+use ParagonIE\PQCrypto\Traits\SensitiveDebugInfoTrait;
 use ParagonIE\PQCrypto\VerificationKeyInterface;
 use Random\RandomException;
 
 class SigningKey implements SigningKeyInterface
 {
+    use SensitiveDebugInfoTrait;
+
     const PARAMS = Params::MLDSA65;
     protected function __construct(private InternalSigningKey $sk)
     {}
@@ -22,7 +25,10 @@ class SigningKey implements SigningKeyInterface
         return $this->sk->bytes();
     }
 
-    public static function fromBytes(string $bytes): self
+    /**
+     * @throws MLDSAInternalException
+     */
+    public static function fromBytes(#[\SensitiveParameter] string $bytes): self
     {
         return new self(
             InternalSigningKey::keyGenInternal(self::PARAMS, $bytes)

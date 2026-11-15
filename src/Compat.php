@@ -405,6 +405,9 @@ abstract class Compat
         string $ctx = ''
     ): MLDSA44Sig {
         $skBytes = is_string($sk) ? $sk : $sk->bytes();
+        if (strlen($skBytes) !== 32) {
+            throw new MLDSAInternalException('ML-DSA seed must be 32 bytes');
+        }
         if (self::useExtension() && $ctx === '') {
             $extSk = ExtMLDSA44SK::fromBytes($skBytes);
             return MLDSA44Sig::fromBytes($extSk->sign($message));
@@ -492,6 +495,9 @@ abstract class Compat
         string $ctx = ''
     ): MLDSA65Sig {
         $skBytes = is_string($sk) ? $sk : $sk->bytes();
+        if (strlen($skBytes) !== 32) {
+            throw new MLDSAInternalException('ML-DSA seed must be 32 bytes');
+        }
         if (self::useExtension() && $ctx === '') {
             $extSk = ExtMLDSA65SK::fromBytes($skBytes);
             return MLDSA65Sig::fromBytes($extSk->sign($message));
@@ -581,6 +587,9 @@ abstract class Compat
         string $ctx = ''
     ): MLDSA87Sig {
         $skBytes = is_string($sk) ? $sk : $sk->bytes();
+        if (strlen($skBytes) !== 32) {
+            throw new MLDSAInternalException('ML-DSA seed must be 32 bytes');
+        }
         if (self::useExtension() && $ctx === '') {
             $extSk = ExtMLDSA87SK::fromBytes($skBytes);
             return MLDSA87Sig::fromBytes($extSk->sign($message));
@@ -677,6 +686,7 @@ abstract class Compat
      * @throws SodiumException
      */
     public static function xwing_decaps(
+        #[SensitiveParameter]
         string|DecapsKeyInterface $dk,
         string $ciphertext
     ): string {

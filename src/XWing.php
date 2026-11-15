@@ -86,7 +86,7 @@ abstract class XWing
      * @throws MLKemInternalException
      * @throws SodiumException
      */
-    public static function encapsulateDerandomized(string $pk, string $eSeed): array
+    public static function encapsulateDerandomized(string $pk, #[SensitiveParameter] string $eSeed): array
     {
         $pkM = substr($pk, 0, self::MLKEM768_EK_SIZE);
         $pkX = substr($pk, self::MLKEM768_EK_SIZE, 32);
@@ -120,8 +120,11 @@ abstract class XWing
      * @throws PQCryptoCompatException
      * @throws SodiumException
      */
-    public static function decapsulate(DecapsKeyInterface $dk, string $ciphertext): string
-    {
+    public static function decapsulate(
+        #[SensitiveParameter]
+        DecapsKeyInterface $dk,
+        string $ciphertext
+    ): string {
         $seed = $dk->bytes();
         if (strlen($seed) !== self::SEED_SIZE) {
             throw new PQCryptoCompatException(
@@ -169,7 +172,7 @@ abstract class XWing
      * @throws MLKemInternalException
      * @throws SodiumException
      */
-    private static function expandDecapsulationKey(string $seed): array
+    private static function expandDecapsulationKey(#[SensitiveParameter] string $seed): array
     {
         $expanded = Keccak::shake256()
             ->absorb($seed)
